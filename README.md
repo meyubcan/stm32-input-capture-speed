@@ -1,75 +1,79 @@
-# STM32F407 ile frekans ve devir ölçümü (input capture)
+# Frequency and RPM measurement with timer input capture
 
-> [TECH-OHM](https://tech-ohm.com) açık kaynak projesi
+STM32F407 · TIM2 input capture · speed sensor readout
 
-Bir hız sensöründen gelen darbelerin periyodunu timer'ın giriş yakalama (input capture) özelliğiyle ölçüp frekansa ve devir sayısına çeviren küçük bir örnek. Motor sürücülerinde hall ya da manyetik hız sensörünü okumak için yazdım.
+![MCU](https://img.shields.io/badge/MCU-STM32F407VG-03234B?logo=stmicroelectronics&logoColor=white) ![IDE](https://img.shields.io/badge/IDE-STM32CubeIDE-2ea44f) ![License](https://img.shields.io/badge/license-MIT-blue) [![TECH-OHM](https://img.shields.io/badge/by-TECH--OHM-FFD400)](https://tech-ohm.com)
 
-## Blok diyagram
+**English** | [Türkçe](README.tr.md) · An open-source project by [TECH-OHM](https://tech-ohm.com)
+
+A small example that measures the period of pulses from a speed sensor with the timer's input capture feature and converts it to frequency and RPM. I wrote it to read hall and magnetic speed sensors on motor drives.
+
+## Block diagram
 
 ```mermaid
 flowchart LR
-    S[Hız sensörü, kare dalga] -- "PA0, yükselen kenar" --> IC[TIM2 CH1 giriş yakalama]
-    CLK[10 MHz timer saati] -- "ön bölücü 5000" --> CNT[Sayaç, 2 kHz]
+    S[Speed sensor, square wave] -- "PA0, rising edge" --> IC[TIM2 CH1 input capture]
+    CLK[10 MHz timer clock] -- "prescaler 5000" --> CNT[Counter, 2 kHz]
     CNT --> IC
-    IC -- kesme --> CB[Yakalanan değer, sayaç sıfırlanır]
-    CB --> CALC[Periyot, frekans, devir/dakika]
+    IC -- interrupt --> CB[Store captured value, reset counter]
+    CB --> CALC[Period, frequency, RPM]
 ```
 
-## Pinler
+## Pins
 
-| Pin | Görev |
+| Pin | Function |
 |---|---|
-| PA0 | TIM2 CH1, sensör girişi |
-| GND | sensörle ortak toprak |
+| PA0 | TIM2 CH1, sensor input |
+| GND | common ground with the sensor |
 
-Sensör çıkışı 3.3 V seviyesinde olmalı. 5 V ya da 12 V çıkışlı sensörlerde araya gerilim bölücü ya da optokuplör koy.
+The sensor output must be at 3.3 V logic level. For 5 V or 12 V sensors put a divider or an optocoupler in between.
 
-## Nasıl çalışıyor
+## How it works
 
-TIM2 sayacı 2 kHz hızla sayıyor, yani bir tik 0.5 ms. Girişte her yükselen kenar geldiğinde timer o anki sayaç değerini yakalıyor ve kesme üretiyor. Kesme içinde yakalanan değer saklanıp sayaç sıfırlanıyor. Böylece her yakalama, bir önceki kenardan bu yana geçen süreyi veriyor.
+The TIM2 counter runs at 2 kHz, so one tick is 0.5 ms. On every rising edge the timer latches the counter value and raises an interrupt. The handler stores the value and resets the counter, so each capture is the time since the previous edge.
 
-Ana döngüde hesap şöyle:
+The main loop does the math:
 
 ```
-periyot (s)   = tik sayısı / 2000
-frekans (Hz)  = 1 / periyot
-devir/dakika  = frekans * 60 / PULSES_PER_REV
+period (s)     = ticks / 2000
+frequency (Hz) = 1 / period
+rpm            = frequency * 60 / PULSES_PER_REV
 ```
 
-İlk kenarda ölçüm alınmıyor, çünkü ondan önce referans olacak bir kenar yok. İki saniye boyunca hiç darbe gelmezse mil durmuş kabul edilip değerler sıfırlanıyor.
+The first edge gives no measurement because there is no earlier edge to measure from. If no pulse arrives for two seconds the shaft is treated as stopped and the values go to zero.
 
-Sonuçlar `period_s`, `frequency_hz` ve `speed_rpm` değişkenlerinde. Debug sırasında Live Expressions penceresine ekleyip izleyebilirsin.
+Results are in `period_s`, `frequency_hz` and `speed_rpm`. Add them to the Live Expressions view while debugging.
 
-## Ölçüm aralığı
+## Measurement range
 
-| | Değer |
+| | Value |
 |---|---|
-| Çözünürlük | 0.5 ms |
-| En düşük frekans | 0.5 Hz (2 s zaman aşımı) |
-| Rahat ölçülen üst sınır | 50 Hz civarı |
+| Resolution | 0.5 ms |
+| Lowest frequency | 0.5 Hz (2 s timeout) |
+| Comfortable upper limit | around 50 Hz |
 
-Frekans yükseldikçe periyot birkaç tike iniyor ve hata büyüyor. 100 Hz'de periyot 20 tik, yani hata %5. Daha hızlı sinyaller için `.ioc` içinden TIM2 ön bölücüsünü küçült ve `TIMER_TICK_HZ` sabitini ona göre güncelle.
+As frequency rises the period shrinks to a few ticks and the error grows. At 100 Hz the period is 20 ticks, a 5% error. For faster signals lower the TIM2 prescaler in the `.ioc` file and update `TIMER_TICK_HZ` to match.
 
-Sensör bir turda birden fazla darbe veriyorsa `PULSES_PER_REV` değerini değiştir.
+If the sensor gives more than one pulse per revolution, change `PULSES_PER_REV`.
 
-## Derleme
+## Build
 
-STM32CubeIDE'de `File > Import > Existing Projects into Workspace` ile klasörü seç. İşlemci STM32F407VG, saat dahili osilatörden 80 MHz.
+In STM32CubeIDE use `File > Import > Existing Projects into Workspace` and select this folder. The clock is 80 MHz from the internal oscillator.
 
-## Durum
+## Status
 
-Hesap kısmını düzenledikten sonra sensörle yeniden denemedim.
+I reworked the calculation and have not re-tested with a sensor since.
 
-## Lisans
+## License
 
-MIT. `Drivers` klasöründeki STM32 HAL ve CMSIS dosyaları kendi lisanslarıyla gelir.
+MIT. The STM32 HAL and CMSIS files under `Drivers` keep their own licenses.
 
-## Yazar
+## Author
 
-Gömülü Sistem Mühendisi M. Eyüb Can, [TECH-OHM](https://tech-ohm.com) kurucusu
+M. Eyüb Can, embedded systems engineer and founder of [TECH-OHM](https://tech-ohm.com)
 
-## TECH-OHM
+## About TECH-OHM
 
-[TECH-OHM](https://tech-ohm.com) elektronik kart ve gömülü yazılım tasarlayan bir mühendislik firması. Fikirden seri üretime kadar tasarım işi alıyor, TECH-OHM Akademi'de 12 aylık gömülü sistem eğitimi ve şirketlere özel danışmanlık veriyor.
+[TECH-OHM](https://tech-ohm.com) designs electronic boards and embedded software, from the first schematic to series production. We also run a 12-month embedded systems training program and consult for engineering teams.
 
-Web: [tech-ohm.com](https://tech-ohm.com) · E-posta: info@tech-ohm.com
+Web: [tech-ohm.com](https://tech-ohm.com) · Email: info@tech-ohm.com
