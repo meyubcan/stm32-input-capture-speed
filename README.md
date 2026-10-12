@@ -1,5 +1,7 @@
 # STM32F407 ile frekans ve devir ölçümü (input capture)
 
+> [TECH-OHM](https://tech-ohm.com) açık kaynak projesi
+
 Bir hız sensöründen gelen darbelerin periyodunu timer'ın giriş yakalama (input capture) özelliğiyle ölçüp frekansa ve devir sayısına çeviren küçük bir örnek. Motor sürücülerinde hall ya da manyetik hız sensörünü okumak için yazdım.
 
 ## Blok diyagram
@@ -64,4 +66,10 @@ MIT. `Drivers` klasöründeki STM32 HAL ve CMSIS dosyaları kendi lisanslarıyla
 
 ## Yazar
 
-Gömülü Sistem Mühendisi M. Eyüb Can, [TECH-OHM](https://tech-ohm.com)
+Gömülü Sistem Mühendisi M. Eyüb Can, [TECH-OHM](https://tech-ohm.com) kurucusu
+
+## TECH-OHM
+
+[TECH-OHM](https://tech-ohm.com) elektronik kart ve gömülü yazılım tasarlayan bir mühendislik firması. Fikirden seri üretime kadar tasarım işi alıyor, TECH-OHM Akademi'de 12 aylık gömülü sistem eğitimi ve şirketlere özel danışmanlık veriyor.
+
+Web: [tech-ohm.com](https://tech-ohm.com) · E-posta: info@tech-ohm.com
