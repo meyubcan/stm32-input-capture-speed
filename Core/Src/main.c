@@ -32,10 +32,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-/* TIM2 saati 10 MHz (PCLK1 5 MHz x 2), on bolucu 5000 -> sayac 2 kHz, 1 tik = 0.5 ms */
+/* TIM2 clock is 10 MHz (PCLK1 5 MHz x 2). Prescaler 5000 gives a 2 kHz counter, 1 tick = 0.5 ms */
 #define TIMER_TICK_HZ     2000.0f
-#define PULSES_PER_REV    1U       /* sensorun bir turda urettigi darbe sayisi */
-#define TIMEOUT_TICKS     4000U    /* 2 s boyunca darbe gelmezse hiz sifir sayilir */
+#define PULSES_PER_REV    1U       /* pulses the sensor gives per revolution */
+#define TIMEOUT_TICKS     4000U    /* no pulse for 2 s means the shaft has stopped */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,11 +47,11 @@
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-static volatile uint32_t capture_ticks = 0;   /* iki yukselen kenar arasi tik sayisi */
+static volatile uint32_t capture_ticks = 0;   /* ticks between two rising edges */
 static volatile uint8_t  capture_ready = 0;
-static volatile uint8_t  first_edge    = 1;   /* ilk kenarda olcum yok, sadece sayac sifirlanir */
+static volatile uint8_t  first_edge    = 1;   /* first edge only resets the counter, nothing to measure yet */
 
-/* Debug sirasinda Live Expressions penceresinden izlenir */
+/* Watch these in the Live Expressions view while debugging */
 float period_s     = 0.0f;
 float frequency_hz = 0.0f;
 float speed_rpm    = 0.0f;
@@ -67,8 +67,8 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/* Her yukselen kenarda cagrilir. Yakalanan deger bir onceki kenardan bu yana
- * gecen suredir, cunku sayac her kenarda sifirlaniyor. */
+/* Called on every rising edge. The captured value is the time since the
+ * previous edge, because the counter is reset on each one. */
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
@@ -139,7 +139,7 @@ int main(void)
     }
     else if (__HAL_TIM_GET_COUNTER(&htim2) > TIMEOUT_TICKS)
     {
-      /* Mil durdu ya da sensor kablosu cikti */
+      /* Shaft stopped or the sensor cable came off */
       period_s     = 0.0f;
       frequency_hz = 0.0f;
       speed_rpm    = 0.0f;
